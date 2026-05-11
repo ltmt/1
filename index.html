@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="老板财务助手 - 专业的财务工具，帮助计算毛利率、统计收支、管理成本、生成利润报表">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>老板财务助手</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1e3a5f',
+            secondary: '#d4af37',
+            success: '#10b981',
+            danger: '#ef4444',
+            dark: '#1a1a2e',
+            darker: '#16162a',
+            muted: '#9ca3af'
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-dark text-white min-h-screen">
+  <div id="app" class="app-container">
+    <div id="home-page" class="page active">
+      <header class="page-header">
+        <h1>📊 财务总览</h1>
+        <p class="text-muted">本月经营情况</p>
+      </header>
+
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="card-label">本月收入</div>
+          <div class="card-value income" id="home-income">¥0.00</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-label">本月支出</div>
+          <div class="card-value expense" id="home-expense">¥0.00</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-label">本月成本</div>
+          <div class="card-value" id="home-costs">¥0.00</div>
+        </div>
+        <div class="summary-card highlight">
+          <div class="card-label">本月利润</div>
+          <div class="card-value" id="home-profit">¥0.00</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-label">利润率</div>
+          <div class="card-value" id="home-profit-margin">0.00%</div>
+        </div>
+      </div>
+
+      <section class="quick-actions" id="quick-actions">
+      </section>
+
+      <section class="recent-section">
+        <h2 class="section-title">最近记录</h2>
+        <div id="recent-transactions" class="recent-list">
+        </div>
+      </section>
+    </div>
+
+    <div id="records-page" class="page">
+      <header class="page-header">
+        <h1>📝 记录管理</h1>
+        <p class="text-muted">管理商品、收支和成本</p>
+      </header>
+
+      <div class="tab-container">
+        <button class="tab-btn active" data-tab="product" onclick="app.setTab('product'); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); this.classList.add('active'); showTab('product');">商品管理</button>
+        <button class="tab-btn" data-tab="transaction" onclick="app.setTab('transaction'); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); this.classList.add('active'); showTab('transaction');">收支记录</button>
+        <button class="tab-btn" data-tab="cost" onclick="app.setTab('cost'); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); this.classList.add('active'); showTab('cost');">成本记录</button>
+        <button class="tab-btn" data-tab="roi" onclick="app.setTab('roi'); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); this.classList.add('active'); showTab('roi');">ROI计算</button>
+      </div>
+
+      <div id="product-tab" class="tab-content active">
+        <div class="form-section">
+          <h3>添加商品</h3>
+          <form id="calculator-form" class="form">
+            <input type="hidden" id="product-id">
+            <div class="form-group">
+              <label for="product-name">商品名称</label>
+              <input type="text" id="product-name" placeholder="输入商品名称" required>
+            </div>
+            <div class="form-group">
+              <label for="cost-price">成本价（元）</label>
+              <input type="number" id="cost-price" placeholder="0.00" step="0.01" min="0" required>
+            </div>
+            <div class="form-group">
+              <label for="selling-price">售价（元）</label>
+              <input type="number" id="selling-price" placeholder="0.00" step="0.01" min="0" required>
+            </div>
+            <button type="submit" id="calc-submit-btn" class="btn btn-primary btn-full">添加商品</button>
+          </form>
+        </div>
+
+        <div class="list-section">
+          <div class="list-header">
+            <h3>商品列表</h3>
+            <input type="text" id="product-search" placeholder="搜索商品..." class="search-input">
+          </div>
+          <div id="products-list" class="card-list">
+          </div>
+        </div>
+      </div>
+
+      <div id="transaction-tab" class="tab-content">
+        <div class="form-section">
+          <h3>添加记录</h3>
+          <form id="transaction-form" class="form">
+            <div class="form-group">
+              <label for="transaction-type">类型</label>
+              <select id="transaction-type" onchange="app.updateCategoryOptions()">
+                <option value="income">收入</option>
+                <option value="expense">支出</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="transaction-category">类别</label>
+              <select id="transaction-category">
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="transaction-amount">金额（元）</label>
+              <input type="number" id="transaction-amount" placeholder="0.00" step="0.01" min="0" required>
+            </div>
+            <div class="form-group">
+              <label for="transaction-date">日期</label>
+              <input type="date" id="transaction-date">
+            </div>
+            <div class="form-group">
+              <label for="transaction-remark">备注</label>
+              <input type="text" id="transaction-remark" placeholder="备注信息（可选）">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">添加记录</button>
+          </form>
+        </div>
+
+        <div class="type-tabs">
+          <button class="type-tab active" data-type="income" onclick="document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active')); this.classList.add('active'); app.renderTransactionList('income');">收入</button>
+          <button class="type-tab" data-type="expense" onclick="document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active')); this.classList.add('active'); app.renderTransactionList('expense');">支出</button>
+        </div>
+
+        <div id="transactions-list" class="card-list">
+        </div>
+      </div>
+
+      <div id="cost-tab" class="tab-content">
+        <div class="form-section">
+          <h3>添加成本</h3>
+          <form id="cost-form" class="form">
+            <div class="form-group">
+              <label for="cost-category">成本类型</label>
+              <select id="cost-category" onchange="app.updateCostItemOptions()">
+                <option value="labor">人工成本</option>
+                <option value="material">物料成本</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="cost-item">成本项</label>
+              <select id="cost-item">
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="cost-amount">金额（元）</label>
+              <input type="number" id="cost-amount" placeholder="0.00" step="0.01" min="0" required>
+            </div>
+            <div class="form-group">
+              <label for="cost-month">月份</label>
+              <input type="month" id="cost-month">
+            </div>
+            <div class="form-group">
+              <label for="cost-remark">备注</label>
+              <input type="text" id="cost-remark" placeholder="备注信息（可选）">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">添加成本</button>
+          </form>
+        </div>
+
+        <div class="type-tabs">
+          <button class="cost-type-tab active" data-category="labor" onclick="document.querySelectorAll('.cost-type-tab').forEach(t => t.classList.remove('active')); this.classList.add('active'); app.renderCostList('labor');">人工成本</button>
+          <button class="cost-type-tab" data-category="material" onclick="document.querySelectorAll('.cost-type-tab').forEach(t => t.classList.remove('active')); this.classList.add('active'); app.renderCostList('material');">物料成本</button>
+        </div>
+
+        <div id="costs-list" class="card-list">
+        </div>
+      </div>
+
+      <div id="roi-tab" class="tab-content">
+        <div class="roi-type-tabs">
+          <button class="roi-type-tab active" data-type="breakeven" onclick="document.querySelectorAll('.roi-type-tab').forEach(t => t.classList.remove('active')); this.classList.add('active'); app.showROITab('breakeven');">保本ROI</button>
+          <button class="roi-type-tab" data-type="actual" onclick="document.querySelectorAll('.roi-type-tab').forEach(t => t.classList.remove('active')); this.classList.add('active'); app.showROITab('actual');">实际ROI</button>
+        </div>
+
+        <div id="breakeven-roi-section" class="roi-form-section active">
+          <div class="form-section">
+            <h3>保本ROI计算</h3>
+            <p class="form-description">根据商品售价计算保本ROI，了解每投入1元能获得多少回报</p>
+            <form id="breakeven-roi-form" class="form">
+              <div class="form-group">
+                <label for="breakeven-selling-price">商品售价（元）</label>
+                <input type="number" id="breakeven-selling-price" placeholder="0.00" step="0.01" min="0" required>
+              </div>
+              <div class="form-group">
+                <label for="breakeven-cost-price">成本价（元）</label>
+                <input type="number" id="breakeven-cost-price" placeholder="0.00" step="0.01" min="0" value="0">
+              </div>
+              <div class="form-group">
+                <label for="breakeven-remark">备注</label>
+                <input type="text" id="breakeven-remark" placeholder="商品名称或备注（可选）">
+              </div>
+              <button type="submit" class="btn btn-primary btn-full">计算保本ROI</button>
+            </form>
+          </div>
+        </div>
+
+        <div id="actual-roi-section" class="roi-form-section">
+          <div class="form-section">
+            <h3>实际ROI计算</h3>
+            <p class="form-description">根据投流费用和实际收入计算ROI，评估投流效果</p>
+            <form id="actual-roi-form" class="form">
+              <div class="form-group">
+                <label for="actual-investment">投流费用（元）</label>
+                <input type="number" id="actual-investment" placeholder="0.00" step="0.01" min="0" required>
+              </div>
+              <div class="form-group">
+                <label for="actual-revenue">实际收入（元）</label>
+                <input type="number" id="actual-revenue" placeholder="0.00" step="0.01" min="0" required>
+              </div>
+              <div class="form-group">
+                <label for="actual-remark">备注</label>
+                <input type="text" id="actual-remark" placeholder="活动名称或备注（可选）">
+              </div>
+              <button type="submit" class="btn btn-primary btn-full">计算实际ROI</button>
+            </form>
+          </div>
+        </div>
+
+        <div id="roi-result" class="hidden">
+        </div>
+
+        <div class="list-section">
+          <div class="list-header">
+            <h3>ROI记录</h3>
+          </div>
+          <div id="roi-records-list" class="card-list">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="reports-page" class="page">
+      <header class="page-header">
+        <h1>📈 报表中心</h1>
+        <p class="text-muted">查看月度/年度利润报表</p>
+      </header>
+
+      <div class="period-tabs">
+        <button class="report-period-tab active" data-period="monthly" onclick="document.querySelectorAll('.report-period-tab').forEach(t => t.classList.remove('active')); this.classList.add('active'); app.renderReport('monthly');">月度报表</button>
+        <button class="report-period-tab" data-period="yearly" onclick="document.querySelectorAll('.report-period-tab').forEach(t => t.classList.remove('active')); this.classList.add('active'); app.renderReport('yearly');">年度报表</button>
+      </div>
+
+      <div id="report-content" class="report-container">
+      </div>
+    </div>
+
+    <div id="settings-page" class="page">
+      <header class="page-header">
+        <h1>⚙️ 设置</h1>
+        <p class="text-muted">数据管理和应用设置</p>
+      </header>
+
+      <div class="settings-section">
+        <h3>数据管理</h3>
+        <div class="settings-list">
+          <button id="export-data" class="settings-item">
+            <span class="icon">📤</span>
+            <span class="text">导出数据</span>
+            <span class="arrow">›</span>
+          </button>
+          <button id="import-data" class="settings-item">
+            <span class="icon">📥</span>
+            <span class="text">导入数据</span>
+            <span class="arrow">›</span>
+          </button>
+          <button id="clear-data" class="settings-item danger">
+            <span class="icon">🗑️</span>
+            <span class="text">清空所有数据</span>
+            <span class="arrow">›</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>关于</h3>
+        <div class="about-info">
+          <p><strong>老板财务助手</strong></p>
+          <p class="text-muted">版本 1.0.0</p>
+          <p class="text-muted">专为中小企业老板设计的轻量级财务工具</p>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>功能说明</h3>
+        <div class="feature-list">
+          <div class="feature-item">
+            <span class="icon">🧮</span>
+            <div>
+              <strong>毛利率计算</strong>
+              <p class="text-muted">快速计算商品毛利率和毛利额</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="icon">💰</span>
+            <div>
+              <strong>收支统计</strong>
+              <p class="text-muted">记录收入和支出，分类统计</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="icon">📊</span>
+            <div>
+              <strong>成本管理</strong>
+              <p class="text-muted">管理人工成本和物料成本</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="icon">📈</span>
+            <div>
+              <strong>利润报表</strong>
+              <p class="text-muted">生成月度/年度利润报表</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-page="home">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-text">首页</span>
+      </button>
+      <button class="nav-item" data-page="records">
+        <span class="nav-icon">📝</span>
+        <span class="nav-text">记录</span>
+      </button>
+      <button class="nav-item" data-page="reports">
+        <span class="nav-icon">📊</span>
+        <span class="nav-text">报表</span>
+      </button>
+      <button class="nav-item" data-page="settings">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-text">我的</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/calculator.js"></script>
+  <script src="js/transactions.js"></script>
+  <script src="js/costs.js"></script>
+  <script src="js/reports.js"></script>
+  <script src="js/roi.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    function showTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      document.getElementById(`${tabName}-tab`).classList.add('active');
+    }
+
+    document.getElementById('transaction-date').valueAsDate = new Date();
+    document.getElementById('cost-month').valueAsDate = new Date();
+  </script>
+</body>
+</html>
